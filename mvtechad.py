@@ -3,6 +3,9 @@ import numpy as np
 import os
 import glob
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 IMGSIZE = 128
@@ -83,6 +86,25 @@ def load_data():
         y_train = x_train
     except FileNotFoundError:
         x_train, _ = load_imgs(train_path, IMGSIZE)
+
+        # Augmentation
+        datagen = ImageDataGenerator(
+                   rotation_range=45,
+                   width_shift_range=0.2,
+                   height_shift_range=0.2,
+                   horizontal_flip=False,
+                   vertical_flip=False)
+        imgs = []
+        x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], x_train.shape[2], 1))
+        c = 0
+        for x in datagen.flow(x_train, batch_size=1):
+            print(c)
+            imgs.append(x)
+            c += 1
+            if c > 10000:
+                break
+        x_train = np.asarray(imgs)
+
         y_train = x_train
         np.save(os.path.join(npy_path, OBJECT+'x_train.npy'), x_train)
 
@@ -90,4 +112,8 @@ def load_data():
 
 if __name__ == '__main__':
     (x_train, y_train), (x_test, y_test) = load_data()
+    for x in x_train[:10]:
+        x = np.reshape(x, (128, 128))
+        plt.imshow(x)
+        plt.show()
     print(x_train.shape, y_train.shape, x_test.shape, y_test.shape)
