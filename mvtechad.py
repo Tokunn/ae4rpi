@@ -9,10 +9,10 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 IMGSIZE = 128
+#OBJECT = "capsule"
 #OBJECT = "carpet"
-OBJECT = "capsule"
 #OBJECT = "metal_nut"
-#OBJECT = "cable"
+OBJECT = "cable"
 
 mvtechad_path = os.path.expanduser('~/group/msuzuki/MVTechAD')
 object_path = os.path.join(mvtechad_path, OBJECT)

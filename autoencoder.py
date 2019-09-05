@@ -19,8 +19,13 @@ from sklearn import metrics
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+
+DEBUG = False
+#DEBUG = True
+
 logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-logdir = "logs/debug/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+if DEBUG:
+    logdir = "logs/debug/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 file_writer = tf.summary.create_file_writer(logdir + "/metrics")
 file_writer.set_as_default()
 
@@ -49,6 +54,8 @@ else:
         x_train = np.reshape(x_train, (len(x_train), 128, 128, 1))
         x_test = np.reshape(x_test, (len(x_test), 128, 128, 1))
         y_test = y_test // 255.0
+if DEBUG:
+    x_train = x_train[:20]
 
 model = tf.keras.models.Sequential([
     tf.keras.layers.Conv2D(32, (4,4), strides=(2,2), activation='relu', padding='same'),
@@ -105,12 +112,23 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         fig = np.reshape(fig, (-1, fig.shape[0], fig.shape[1], fig.shape[2]))
         tf.summary.image('ROC', fig, step=epoch)
 
+    def calc_hist(self, diff_img, epoch):
+        diff_list = [np.sum(i) for i in diff_img]
+        # Save Histogram Image
+        plt.figure()
+        plt.hist(diff_list)
+        plt.savefig(os.path.join(logdir, 'temphist.png'))
+        # Load Image
+        fig = np.asarray(Image.open(os.path.join(logdir, 'temphist.png')))
+        fig = np.reshape(fig, (-1, fig.shape[0], fig.shape[1], fig.shape[2]))
+        tf.summary.image('Histogram', fig, step=epoch)
+
     def on_epoch_end(self, epoch, logs={}):
         global y_test
         # Predict
         predictions = self._model.predict(x_test)
         # Diff
-        diff_img = x_test - predictions
+        diff_img = np.abs(x_test - predictions)
         diff_list = np.array([np.sum(np.abs(x_test[i] - predictions[i])) for i in range(len(predictions))])
         # Concatenate
         y_test = np.reshape(y_test, (-1, y_test.shape[1], y_test.shape[2], 1))
@@ -123,6 +141,8 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         tf.summary.image(self._tag, results, max_outputs=30, step=epoch)
         # ROC
         self.calc_roc(diff_img, epoch)
+        # Histogram
+        self.calc_hist(diff_img, epoch)
         # Write loss
         for key in logs.keys():
             tf.summary.scalar(key, data=logs[key], step=epoch)
