@@ -20,7 +20,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-#logdir = "logs/debug/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+logdir = "logs/debug/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 file_writer = tf.summary.create_file_writer(logdir + "/metrics")
 file_writer.set_as_default()
 

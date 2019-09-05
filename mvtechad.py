@@ -7,9 +7,9 @@ from tqdm import tqdm
 
 IMGSIZE = 128
 #OBJECT = "carpet"
-#OBJECT = "capsule"
+OBJECT = "capsule"
 #OBJECT = "metal_nut"
-OBJECT = "cable"
+#OBJECT = "cable"
 
 mvtechad_path = os.path.expanduser('~/group/msuzuki/MVTechAD')
 object_path = os.path.join(mvtechad_path, OBJECT)
@@ -41,13 +41,13 @@ def load_imgs(path, imgsize, ground=None):
 
     goodimglist = []
     for imgname in tqdm(goodimgnamelist):
-        img = Image.open(imgname)
+        img = Image.open(imgname).convert("L")
         resized_img = img.resize((imgsize, imgsize))
         goodimglist.append(np.array(resized_img))
 
     badimglist = []
     for imgname in tqdm(badimgnamelist):
-        img = Image.open(imgname)
+        img = Image.open(imgname).convert("L")
         resized_img = img.resize((imgsize, imgsize))
         badimglist.append(np.array(resized_img))
 
@@ -56,7 +56,7 @@ def load_imgs(path, imgsize, ground=None):
         truthimglist = []
         truthimgnamelist = get_imglist(ground)
         for imgname in tqdm(truthimgnamelist):
-            img = Image.open(imgname)
+            img = Image.open(imgname).convert("L")
             resized_img = img.resize((imgsize, imgsize))
             truthimglist.append(np.array(resized_img))
         truthimglist = np.array(truthimglist)
