@@ -46,8 +46,6 @@ else:
     (x_train, y_train), (x_test, y_test) = mvtechad.load_data()
     x_train, x_test = x_train / 255.0, x_test / 255.0
     if CHANNEL1:
-        x_train = x_train[:,:,:,0]
-        x_test = x_test[:,:,:,0]
         x_train = np.reshape(x_train, (len(x_train), 128, 128, 1))
         x_test = np.reshape(x_test, (len(x_test), 128, 128, 1))
         y_test = y_test // 255.0
