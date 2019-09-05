@@ -84,13 +84,14 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         self._model = model
         self._tag = tag
 
-    def calc_roc(self, predictions, epoch):
+    def calc_roc(self, diff_img, epoch):
         plt.figure()
         # flatten
+        print(y_test.shape, diff_img.shape)
         y_test_reshape = np.reshape(y_test, (-1))
-        predictions_reshape = np.reshape(predictions, (-1))
+        diff_img_reshape = np.reshape(diff_img, (-1))
         # calc ROC,AUC
-        fpr, tpr, threshoulds = metrics.roc_curve(y_test_reshape, predictions_reshape)
+        fpr, tpr, threshoulds = metrics.roc_curve(y_test_reshape, diff_img_reshape)
         auc = metrics.auc(fpr, tpr)
         tf.summary.scalar('auc', data=auc, step=epoch)
         # Save ROC Image
@@ -119,7 +120,7 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         # Write to TensorBoard
         tf.summary.image(self._tag, results, max_outputs=30, step=epoch)
         # ROC
-        self.calc_roc(predictions, epoch)
+        self.calc_roc(diff_img, epoch)
         # Write loss
         for key in logs.keys():
             tf.summary.scalar(key, data=logs[key], step=epoch)
