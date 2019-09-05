@@ -1,0 +1,7 @@
+.python-version
+__pycache__/
+*.png
+jobscript/jobscript.sh.o*
+logs/
+npy/
+output/
