@@ -12,13 +12,7 @@ IMGSIZE = 128
 #OBJECT = "capsule"
 #OBJECT = "carpet"
 #OBJECT = "metal_nut"
-OBJECT = "cable"
-
-mvtechad_path = os.path.expanduser('~/group/msuzuki/MVTechAD')
-object_path = os.path.join(mvtechad_path, OBJECT)
-train_path = os.path.join(object_path, 'train')
-test_path = os.path.join(object_path, 'test')
-ground_truth_path = os.path.join(object_path, 'ground_truth')
+#OBJECT = "cable"
 
 npy_path = './npy'
 os.makedirs(npy_path, exist_ok=True)
@@ -70,7 +64,13 @@ def load_imgs(path, imgsize, ground=None):
     return x, y
 
 
-def load_data():
+def load_data(OBJECT):
+    mvtechad_path = os.path.expanduser('~/group/msuzuki/MVTechAD')
+    object_path = os.path.join(mvtechad_path, OBJECT)
+    train_path = os.path.join(object_path, 'train')
+    test_path = os.path.join(object_path, 'test')
+    ground_truth_path = os.path.join(object_path, 'ground_truth')
+
     print("Loading test data...") 
     try:
         x_test = np.load(os.path.join(npy_path, OBJECT+'x_test.npy'))

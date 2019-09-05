@@ -31,6 +31,10 @@ file_writer.set_as_default()
 
 #tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir)
 
+#OBJECT = "capsule"
+#OBJECT = "carpet"
+#OBJECT = "metal_nut"
+OBJECT = "cable"
 
 
 MNIST = False
@@ -48,7 +52,7 @@ if MNIST:
     x_test = np.reshape(x_test, (len(x_test), 28, 28, 1))
 else:
     import mvtechad
-    (x_train, y_train), (x_test, y_test) = mvtechad.load_data()
+    (x_train, y_train), (x_test, y_test) = mvtechad.load_data(OBJECT)
     x_train, x_test = x_train / 255.0, x_test / 255.0
     if CHANNEL1:
         x_train = np.reshape(x_train, (len(x_train), 128, 128, 1))
