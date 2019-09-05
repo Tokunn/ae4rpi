@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
@@ -5,6 +6,9 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import sys, os
+import math
+
+from PIL import Image
 
 from datetime import datetime
 from tensorflow.keras.callbacks import Callback, TensorBoard
@@ -12,8 +16,16 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from sklearn import metrics
 
-tb_cb = TensorBoard(log_dir='./logs', histogram_freq=0, batch_size=32, write_graph=True, write_grads=False, write_images=True, embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None)
-cbks = [tb_cb]
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
+
+logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+#logdir = "logs/debug/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+file_writer = tf.summary.create_file_writer(logdir + "/metrics")
+file_writer.set_as_default()
+
+#tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir)
+
 
 
 MNIST = False
@@ -39,18 +51,6 @@ else:
         x_train = np.reshape(x_train, (len(x_train), 128, 128, 1))
         x_test = np.reshape(x_test, (len(x_test), 128, 128, 1))
         y_test = y_test // 255.0
-
-
-# model = tf.keras.models.Sequential([
-#     tf.keras.layers.Flatten(input_shape=(28, 28)),
-#     tf.keras.layers.BatchNormalization(),
-#     tf.keras.layers.Dense(392, activation='relu'),
-#     tf.keras.layers.Dense(128, activation='relu'),
-#     tf.keras.layers.BatchNormalization(),
-#     tf.keras.layers.Dense(392, activation='relu'),
-#     tf.keras.layers.Dense(784, activation='sigmoid'),
-#     tf.keras.layers.Reshape((28,28))
-# ])
 
 model = tf.keras.models.Sequential([
     tf.keras.layers.Conv2D(32, (4,4), strides=(2,2), activation='relu', padding='same'),
@@ -78,102 +78,69 @@ model = tf.keras.models.Sequential([
     tf.keras.layers.Conv2D(1, (3, 3), activation='sigmoid', padding='same') # CHANNEL
 ])
 
-#model = tf.keras.models.Sequential([
-#    tf.keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
-#    tf.keras.layers.MaxPooling2D((2, 2), padding='same'),
-#    tf.keras.layers.Conv2D(8, (3, 3), activation='relu', padding='same'),
-#    tf.keras.layers.MaxPooling2D((2, 2), padding='same'),
-#    tf.keras.layers.Conv2D(8, (3, 3), activation='relu', padding='same'),
-#    tf.keras.layers.MaxPooling2D((2, 2), padding='same'),
-#    
-#    tf.keras.layers.Conv2D(8, (3, 3), activation='relu', padding='same'),
-#    tf.keras.layers.UpSampling2D((2, 2)),
-#    tf.keras.layers.Conv2D(8, (3, 3), activation='relu', padding='same'),
-#    tf.keras.layers.UpSampling2D((2, 2)),
-#    tf.keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
-#    tf.keras.layers.UpSampling2D((2, 2)),
-#    tf.keras.layers.Conv2D(1, (3, 3), activation='sigmoid', padding='same') # CHANNEL
-#])
+class TensorBoardImage(tf.keras.callbacks.Callback):
+    def __init__(self, model, tag):
+        super().__init__() 
+        self._model = model
+        self._tag = tag
+
+    def calc_roc(self, predictions, epoch):
+        plt.figure()
+        # flatten
+        y_test_reshape = np.reshape(y_test, (-1))
+        predictions_reshape = np.reshape(predictions, (-1))
+        # calc ROC,AUC
+        fpr, tpr, threshoulds = metrics.roc_curve(y_test_reshape, predictions_reshape)
+        auc = metrics.auc(fpr, tpr)
+        tf.summary.scalar('auc', data=auc, step=epoch)
+        # Save ROC Image
+        plt.plot(fpr, tpr, label='ROC curve (area = %.2f)'%auc)
+        plt.legend()
+        plt.title('ROC curve')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.grid(True)
+        plt.savefig(os.path.join(logdir, 'temp.png'))
+        # Load Image
+        fig = np.asarray(Image.open(os.path.join(logdir, 'temp.png')))
+        fig = np.reshape(fig, (-1, fig.shape[0], fig.shape[1], fig.shape[2]))
+        tf.summary.image('ROC', fig, step=epoch)
+
+    def on_epoch_end(self, epoch, logs={}):
+        # Predict
+        predictions = self._model.predict(x_test)
+        # Diff
+        diff_img = x_test - predictions
+        diff_list = np.array([np.sum(np.abs(x_test[i] - predictions[i])) for i in range(len(predictions))])
+        # Concate
+        results = np.concatenate((x_test, predictions, diff_img), axis=2)
+        # Reshape
+        results = np.reshape(results, (-1, results.shape[1], results.shape[2], 1))
+        # Write to TensorBoard
+        tf.summary.image(self._tag, results, max_outputs=30, step=epoch)
+        # ROC
+        self.calc_roc(predictions, epoch)
+        # Write loss
+        for key in logs.keys():
+            tf.summary.scalar(key, data=logs[key], step=epoch)
+
+        return
 
 model.compile(optimizer='adam',
     loss='mean_squared_error',
     metrics=['mean_squared_error'])
 
+# Callbacks
+tbi_callback = TensorBoardImage(model, 'Prediction')
+#cbks = [tensorboard_callback, tbi_callback]
+cbks = [tbi_callback]
+# Training
 model.fit(x_train,
           x_train,
-          epochs=50,
+          epochs=200,
           batch_size=256,
           callbacks=cbks)
 
 model.summary()
-
-model.evaluate(x_test, x_test)
-
-predictions = model.predict(x_test)
-if MNIST:
-    predictions = np.reshape(predictions, (len(predictions), 28, 28))
-    x_test = np.reshape(x_test, (len(x_test), 28, 28))
-elif CHANNEL1:
-    predictions = np.reshape(predictions, (len(predictions), 128, 128))
-    x_test = np.reshape(x_test, (len(x_test), 128, 128))
-    #y_test = np.reshape(y_test, (len(y_test), 128, 128))
-
-# ROC
-plt.figure()
-y_test_reshape = np.reshape(y_test, (-1))
-predictions_reshape = np.reshape(predictions, (-1))
-
-print(y_test_reshape, predictions_reshape)
-print(y_test_reshape.shape, predictions_reshape.shape)
-print(y_test_reshape.dtype, predictions_reshape.dtype)
-print(np.histogram(y_test_reshape))
-print(np.histogram(predictions_reshape))
-fpr, tpr, threshoulds = metrics.roc_curve(y_test_reshape, predictions_reshape)
-auc = metrics.auc(fpr, tpr)
-
-plt.plot(fpr, tpr, label='ROS curve (area = %.2f)'%auc)
-plt.legend()
-plt.title('ROC curve')
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.grid(True)
-plt.savefig('roc.png')
-
-plt.figure()
-#col = 3
-#row = 10
-#for index in range(row):
-for index in range(len(predictions)):
-    instance = x_test[index]
-    decoded_img = predictions[index]
-    diff_img = instance - decoded_img
-    diff = round(np.sum(np.abs(diff_img)))
-
-    #subplot = plt.subplot(row, col, col*index+1)
-    #plt.imshow(instance)
-    #subplot = plt.subplot(row, col, col*index+2)
-    #plt.imshow(decoded_img)
-    #subplot = plt.subplot(row, col, col*index+3)
-    #plt.imshow(diff_img)
-    #subplot.set_ylabel(str(diff))
-
-    plt.figure()
-    subplot = plt.subplot(1, 3, 1)
-    plt.imshow(instance)
-    subplot = plt.subplot(1, 3, 2)
-    plt.imshow(decoded_img)
-    subplot = plt.subplot(1, 3, 3)
-    plt.imshow(diff_img)
-    subplot.set_xlabel(str(diff))
-    os.makedirs('output', exist_ok=True)
-    plt.savefig(os.path.join('output', str(index)+'.png'))
-
-#plt.savefig('result.png')
-
-
-plt.figure()
-
-diff_list = x_test - predictions
-diff_list = [np.sum(np.abs(x_test[i] - predictions[i])) for i in range(len(predictions))]
-plt.hist(diff_list)
-plt.savefig('hist.png')
+## Evaluate
+#model.evaluate(x_test, x_test)
