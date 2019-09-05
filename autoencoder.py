@@ -108,16 +108,20 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         tf.summary.image('ROC', fig, step=epoch)
 
     def on_epoch_end(self, epoch, logs={}):
+        global y_test
         # Predict
         predictions = self._model.predict(x_test)
         # Diff
         diff_img = x_test - predictions
         diff_list = np.array([np.sum(np.abs(x_test[i] - predictions[i])) for i in range(len(predictions))])
-        # Concate
-        results = np.concatenate((x_test, predictions, diff_img), axis=2)
+        # Concatenate
+        y_test = np.reshape(y_test, (-1, y_test.shape[1], y_test.shape[2], 1))
+        results1 = np.concatenate((x_test, predictions), axis=2)
+        results2 = np.concatenate((diff_img, y_test), axis=2)
+        results = np.concatenate((results1, results2), axis=1)
         # Reshape
         results = np.reshape(results, (-1, results.shape[1], results.shape[2], 1))
-        # Write to TensorBoard
+        # Write Image
         tf.summary.image(self._tag, results, max_outputs=30, step=epoch)
         # ROC
         self.calc_roc(diff_img, epoch)

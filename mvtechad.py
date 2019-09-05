@@ -6,12 +6,16 @@ from tqdm import tqdm
 
 
 IMGSIZE = 128
+#OBJECT = "carpet"
+#OBJECT = "capsule"
+#OBJECT = "metal_nut"
+OBJECT = "cable"
 
 mvtechad_path = os.path.expanduser('~/group/msuzuki/MVTechAD')
-capsule_path = os.path.join(mvtechad_path, 'capsule')
-train_path = os.path.join(capsule_path, 'train')
-test_path = os.path.join(capsule_path, 'test')
-ground_truth_path = os.path.join(capsule_path, 'ground_truth')
+object_path = os.path.join(mvtechad_path, OBJECT)
+train_path = os.path.join(object_path, 'train')
+test_path = os.path.join(object_path, 'test')
+ground_truth_path = os.path.join(object_path, 'ground_truth')
 
 npy_path = './npy'
 os.makedirs(npy_path, exist_ok=True)
@@ -66,21 +70,21 @@ def load_imgs(path, imgsize, ground=None):
 def load_data():
     print("Loading test data...") 
     try:
-        x_test = np.load(os.path.join(npy_path, 'x_test.npy'))
-        y_test = np.load(os.path.join(npy_path, 'y_test.npy'))
+        x_test = np.load(os.path.join(npy_path, OBJECT+'x_test.npy'))
+        y_test = np.load(os.path.join(npy_path, OBJECT+'y_test.npy'))
     except FileNotFoundError:
         x_test, y_test = load_imgs(test_path, IMGSIZE, ground=ground_truth_path)
-        np.save(os.path.join(npy_path, 'x_test.npy'), x_test)
-        np.save(os.path.join(npy_path, 'y_test.npy'), y_test)
+        np.save(os.path.join(npy_path, OBJECT+'x_test.npy'), x_test)
+        np.save(os.path.join(npy_path, OBJECT+'y_test.npy'), y_test)
 
     print("Loading train data...")
     try:
-        x_train = np.load(os.path.join(npy_path, 'x_train.npy'))
+        x_train = np.load(os.path.join(npy_path, OBJECT+'x_train.npy'))
         y_train = x_train
     except FileNotFoundError:
         x_train, _ = load_imgs(train_path, IMGSIZE)
         y_train = x_train
-        np.save(os.path.join(npy_path, 'x_train.npy'), x_train)
+        np.save(os.path.join(npy_path, OBJECT+'x_train.npy'), x_train)
 
     return (x_train, y_train), (x_test, y_test)
 
