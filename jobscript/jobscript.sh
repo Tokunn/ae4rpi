@@ -6,8 +6,8 @@
 #$-j y
 
 source /etc/profile.d/modules.sh
-module load cuda/9.0/9.0.176.4 cudnn/7.4/7.4.2
+module load cuda/10.0/10.0.130 cudnn/7.4/7.4.2
 
 cd ~/Documents/tensorflow20/
 
-python3 autoencoder.py
+python3 autoencoder.py capsule

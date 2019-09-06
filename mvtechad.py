@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
-IMGSIZE = 128
+#IMGSIZE = 128
+IMGSIZE = 256
 #OBJECT = "capsule"
 #OBJECT = "carpet"
 #OBJECT = "metal_nut"
