@@ -64,8 +64,8 @@ else:
     (x_train, y_train), (x_test, y_test) = mvtechad.load_data(OBJECT)
     x_train, x_test = x_train / 255.0, x_test / 255.0
     if CHANNEL1:
-        x_train = np.reshape(x_train, (len(x_train), 128, 128, 1))
-        x_test = np.reshape(x_test, (len(x_test), 128, 128, 1))
+        x_train = np.reshape(x_train, (len(x_train), x_train.shape[2], x_train.shape[3], 1))
+        x_test = np.reshape(x_test, (len(x_test), x_test.shape[1], x_test.shape[2], 1))
         y_test = y_test // 255.0
 if DEBUG:
     x_train = x_train[:200]
@@ -137,6 +137,16 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         fig = np.reshape(fig, (-1, fig.shape[0], fig.shape[1], fig.shape[2]))
         tf.summary.image('Histogram', fig, step=epoch)
 
+    def calc_hist_label(self, diff_list, epoch):
+        # Save Histogram Image
+        plt.figure()
+        plt.hist(diff_list)
+        plt.savefig(os.path.join(logdir, 'temphist.png'))
+        # Load Image
+        fig = np.asarray(Image.open(os.path.join(logdir, 'temphist.png')))
+        fig = np.reshape(fig, (-1, fig.shape[0], fig.shape[1], fig.shape[2]))
+        tf.summary.image('Histogram', fig, step=epoch)
+
     def on_epoch_end(self, epoch, logs={}):
         global y_test
         # Predict
@@ -158,7 +168,8 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         #self.calc_roc(diff_img, epoch) # Pixel wise
         self.calc_roc_label(diff_list, epoch) # Label
         # Histogram
-        self.calc_hist(diff_img, epoch)
+        #self.calc_hist(diff_img, epoch)
+        self.calc_hist_label(diff_list, epoch)
         # Write loss
         for key in logs.keys():
             tf.summary.scalar(key, data=logs[key], step=epoch)
