@@ -13,15 +13,22 @@ from PIL import Image
 from datetime import datetime
 from tensorflow.keras.callbacks import Callback, TensorBoard
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.layers import Conv2D, UpSampling2D
 
 from sklearn import metrics
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+from tensorflow.keras.utils import multi_gpu_model
+
+
 
 DEBUG = False
 #DEBUG = True
+
+GPU_COUNT = 1
+BATCH_SIZE = 256 * GPU_COUNT
 
 logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 if DEBUG:
@@ -62,32 +69,6 @@ else:
         y_test = y_test // 255.0
 if DEBUG:
     x_train = x_train[:200]
-
-model = tf.keras.models.Sequential([
-    tf.keras.layers.Conv2D(32, (4,4), strides=(2,2), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(32, (4,4), strides=(2,2), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(32, (3,3), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(64, (4,4), strides=(2,2), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(64, (3,3), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(128, (4,4), strides=(2,2), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(64, (3,3), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(32, (3,3), strides=(1,1), activation='relu', padding='same'),
-    
-    tf.keras.layers.Conv2D(32, (3,3), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(64, (3,3), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.UpSampling2D((2, 2)),
-    tf.keras.layers.Conv2D(128, (4,4), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(64, (3,3), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.UpSampling2D((2, 2)),
-    tf.keras.layers.Conv2D(64, (4,4), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.Conv2D(32, (3,3), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.UpSampling2D((2, 2)),
-    tf.keras.layers.Conv2D(32, (4,4), strides=(1,1), activation='relu', padding='same'),
-    tf.keras.layers.UpSampling2D((2, 2)),
-    tf.keras.layers.Conv2D(32, (4,4), strides=(1,1), activation='relu', padding='same'),
-
-    tf.keras.layers.Conv2D(1, (3, 3), activation='sigmoid', padding='same') # CHANNEL
-])
 
 class TensorBoardImage(tf.keras.callbacks.Callback):
     def __init__(self, model, tag):
@@ -184,6 +165,37 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
 
         return
 
+
+with tf.device("/cpu:0"):
+    model = tf.keras.models.Sequential([
+        Conv2D(32,(4,4), strides=(2,2), activation='relu', padding='same', input_shape=x_train.shape[1:]),
+        Conv2D(32,(4,4), strides=(2,2), activation='relu', padding='same'),
+        Conv2D(32,(3,3), strides=(1,1), activation='relu', padding='same'),
+        Conv2D(64,(4,4), strides=(2,2), activation='relu', padding='same'),
+        Conv2D(64,(3,3), strides=(1,1), activation='relu', padding='same'),
+        Conv2D(128, (4,4), strides=(2,2), activation='relu', padding='same'),
+        Conv2D(64, (3,3), strides=(1,1), activation='relu', padding='same'),
+        Conv2D(32, (3,3), strides=(1,1), activation='relu', padding='same'),
+        
+        Conv2D(32, (3,3), strides=(1,1), activation='relu', padding='same'),
+        Conv2D(64, (3,3), strides=(1,1), activation='relu', padding='same'),
+        UpSampling2D((2, 2)),
+        Conv2D(128, (4,4), strides=(1,1), activation='relu', padding='same'),
+        Conv2D(64, (3,3), strides=(1,1), activation='relu', padding='same'),
+        UpSampling2D((2, 2)),
+        Conv2D(64, (4,4), strides=(1,1), activation='relu', padding='same'),
+        Conv2D(32, (3,3), strides=(1,1), activation='relu', padding='same'),
+        UpSampling2D((2, 2)),
+        Conv2D(32, (4,4), strides=(1,1), activation='relu', padding='same'),
+        UpSampling2D((2, 2)),
+        Conv2D(32, (4,4), strides=(1,1), activation='relu', padding='same'),
+
+        Conv2D(1, (3, 3), activation='sigmoid', padding='same') # CHANNEL
+    ])
+
+if GPU_COUNT > 1:
+    model = multi_gpu_model(model, gpus=GPU_COUNT)
+
 #sgd = optimizers.SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
 #model.compile(optimizer=sgd,
 #    loss='mean_squared_error',
@@ -201,7 +213,7 @@ cbks = [tbi_callback]
 model.fit(x_train,
           x_train,
           epochs=200,
-          batch_size=256,
+          batch_size=BATCH_SIZE,
           callbacks=cbks)
 
 model.summary()
