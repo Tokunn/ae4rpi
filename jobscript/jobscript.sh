@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 #$-l rt_G.small=1
-#$ -l h_rt=10:00:00
+#$ -l h_rt=24:00:00
 #$-cwd
 #$-j y
 

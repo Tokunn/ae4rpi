@@ -34,7 +34,9 @@ file_writer.set_as_default()
 #OBJECT = "capsule"
 #OBJECT = "carpet"
 #OBJECT = "metal_nut"
-OBJECT = "cable"
+#OBJECT = "cable"
+OBJECT = sys.argv[1]
+print("#"*20 + OBJECT)
 
 
 MNIST = False
@@ -59,7 +61,7 @@ else:
         x_test = np.reshape(x_test, (len(x_test), 128, 128, 1))
         y_test = y_test // 255.0
 if DEBUG:
-    x_train = x_train[:20]
+    x_train = x_train[:200]
 
 model = tf.keras.models.Sequential([
     tf.keras.layers.Conv2D(32, (4,4), strides=(2,2), activation='relu', padding='same'),
@@ -116,6 +118,33 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         fig = np.reshape(fig, (-1, fig.shape[0], fig.shape[1], fig.shape[2]))
         tf.summary.image('ROC', fig, step=epoch)
 
+
+    def calc_roc_label(self, diff_list, epoch):
+        plt.figure()
+        # make label
+        y_test_label = [np.clip(np.sum(l), 0, 1) for l in y_test]
+        # Convert to ndarray
+        y_test_reshape = np.asarray(y_test_label)
+        diff_img_reshape = np.asarray(diff_list)
+        #print(y_test_reshape)
+        #print(diff_img_reshape)
+        # calc ROC,AUC
+        fpr, tpr, threshoulds = metrics.roc_curve(y_test_reshape, diff_img_reshape)
+        auc = metrics.auc(fpr, tpr)
+        tf.summary.scalar('auc', data=auc, step=epoch)
+        # Save ROC Image
+        plt.plot(fpr, tpr, label='ROC curve (area = %.2f)'%auc)
+        plt.legend()
+        plt.title('ROC curve')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.grid(True)
+        plt.savefig(os.path.join(logdir, 'temp.png'))
+        # Load Image
+        fig = np.asarray(Image.open(os.path.join(logdir, 'temp.png')))
+        fig = np.reshape(fig, (-1, fig.shape[0], fig.shape[1], fig.shape[2]))
+        tf.summary.image('ROC', fig, step=epoch)
+
     def calc_hist(self, diff_img, epoch):
         diff_list = [np.sum(i) for i in diff_img]
         # Save Histogram Image
@@ -133,7 +162,8 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         predictions = self._model.predict(x_test)
         # Diff
         diff_img = np.abs(x_test - predictions)
-        diff_list = np.array([np.sum(np.abs(x_test[i] - predictions[i])) for i in range(len(predictions))])
+        #diff_list = np.array([np.sum(np.abs(x_test[i] - predictions[i])) for i in range(len(predictions))])
+        diff_list = np.array([np.mean((x_test[i] - predictions[i])**2) for i in range(len(predictions))])
         # Concatenate
         y_test = np.reshape(y_test, (-1, y_test.shape[1], y_test.shape[2], 1))
         results1 = np.concatenate((x_test, predictions), axis=2)
@@ -144,7 +174,8 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
         # Write Image
         tf.summary.image(self._tag, results, max_outputs=30, step=epoch)
         # ROC
-        self.calc_roc(diff_img, epoch)
+        #self.calc_roc(diff_img, epoch) # Pixel wise
+        self.calc_roc_label(diff_list, epoch) # Label
         # Histogram
         self.calc_hist(diff_img, epoch)
         # Write loss
@@ -152,6 +183,11 @@ class TensorBoardImage(tf.keras.callbacks.Callback):
             tf.summary.scalar(key, data=logs[key], step=epoch)
 
         return
+
+#sgd = optimizers.SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
+#model.compile(optimizer=sgd,
+#    loss='mean_squared_error',
+#    metrics=['mean_squared_error'])
 
 model.compile(optimizer='adam',
     loss='mean_squared_error',
